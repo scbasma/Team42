@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
+#include <time.h>
 
 #define EDGEONLY
 
@@ -178,7 +179,7 @@ main(int argc,char *argv[])
 	int best_i;
 	int best_j;
 	void *taboo_list;
-
+        srand(time(NULL));
 	/*
 	 * start with graph of size 8
 	 */
@@ -235,8 +236,14 @@ main(int argc,char *argv[])
 			 */
 			for(i=0; i < (gsize+1); i++)
 			{
-				new_g[i*(gsize+1) + gsize] = 0; // last column
-				new_g[gsize*(gsize+1) + i] = 0; // last row
+				if(rand() % 2 == 0){ 
+					new_g[i*(gsize+1) + gsize] = 0; // last column
+					new_g[gsize*(gsize+1) + i] = 0; // last row
+				}
+				else{
+					new_g[i*(gsize+1) + gsize] = 1; // last column
+					new_g[gsize*(gsize+1) + i] = 1; // last row
+				}
 			}
 
 			/*
