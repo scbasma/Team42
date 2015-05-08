@@ -4,6 +4,10 @@
 #include <errno.h>
 #include <string.h>
 #include <time.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h> 
 
 #define EDGEONLY
 
@@ -78,6 +82,71 @@ void CopyGraph(int *old_g, int o_gsize, int *new_g, int n_gsize)
 	}
 
 	return;
+}
+
+
+void SendGraph(int *ramsey_g, int g_size){
+
+    int sockfd, portno, n;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+
+    char buffer[1024];
+
+    portno = 9999;
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    
+    if (sockfd < 0) 
+        error("ERROR opening socket");
+    
+    char *host_address = "52.24.163.58";
+    server = gethostbyname(host_address);
+    if (server == NULL) {
+        fprintf(stderr,"ERROR, no such host\n");
+        exit(0);
+    }
+
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, 
+         (char *)&serv_addr.sin_addr.s_addr,
+         server->h_length);
+    serv_addr.sin_port = htons(portno);
+    if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
+        error("ERROR connecting");
+
+    //number of | is given by number of rows - 1
+    //so number of characters is rows * columns * (rows-1)
+
+    bzero(buffer,1024);
+    int i;
+    for(i = 0; i < g_size; i++){
+        int j;
+        for(j = 0; j < g_size; j++){
+            char str_elem[2];
+            sprintf(str_elem, "%d", ramsey_g[i * g_size + j]);
+            if(j < g_size -1) 
+                strcat(str_elem, ",");
+            printf("%s\n",str_elem);
+            strcat(buffer, str_elem);
+            printf("%s\n",buffer);
+        }
+        if(i < g_size-1)
+            strcat(buffer, "|");
+
+    }
+    printf(buffer);
+    //strncpy(buffer,test,1023);
+
+    n = write(sockfd,buffer,strlen(buffer));
+    if (n < 0) 
+         error("ERROR writing to socket");
+    bzero(buffer,1024);
+    n = read(sockfd,buffer,1023);
+    if (n < 0) 
+         error("ERROR reading from socket");
+    printf("%s\n",buffer);
+    close(sockfd);
 }
 
 
@@ -219,6 +288,8 @@ main(int argc,char *argv[])
 		{
 			printf("Eureka!  Counter-example found!\n");
 			PrintGraph(g,gsize);
+			if(gsize > 60)
+				SendGraph(g, gsize);
 			/*
 			 * make a new graph one size bigger
 			 */
