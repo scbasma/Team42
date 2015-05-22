@@ -241,17 +241,17 @@ TrySolve(int *oldG,int oldGSize,int* biggest)
 {
 	int* newG = (int *)malloc((oldGSize+1)*(oldGSize+1)*sizeof(int));
 	CopyGraph(oldG,oldGSize,newG,oldGSize+1);
-	for(int i=0; i < (oldGSize+1); i++)
+	for(int j=0; j < (oldGSize+1); j++)
         {
                 if(rand() % 2 == 0)
 		{
-			newG[i*(oldGSize+1) + oldGSize] = 0; // last column
-                	newG[oldGSize*(oldGSize+1) + i] = 0; // last row
+			newG[j*(oldGSize+1) + oldGSize] = 0; // last column
+                	newG[oldGSize*(oldGSize+1) + j] = 0; // last row
 		}
 		else
 		{
-			newG[i*(oldGSize+1) + oldGSize] = 1; // last column
-                	newG[oldGSize*(oldGSize+1) + i] = 1; // last row
+			newG[j*(oldGSize+1) + oldGSize] = 1; // last column
+                	newG[oldGSize*(oldGSize+1) + j] = 1; // last row
 		}
         }
 	int i=0;
