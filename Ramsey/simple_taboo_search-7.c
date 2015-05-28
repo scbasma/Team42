@@ -86,72 +86,6 @@ void CopyGraph(int *old_g, int o_gsize, int *new_g, int n_gsize)
 	return;
 }
 
-
-void SendGraph(int *ramsey_g, int g_size){
-
-    int sockfd, portno, n;
-    struct sockaddr_in serv_addr;
-    struct hostent *server;
-
-    char buffer[1024];
-
-    portno = 9999;
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    
-    if (sockfd < 0) 
-        error("ERROR opening socket");
-    
-    char *host_address = "52.24.163.58";
-    server = gethostbyname(host_address);
-    if (server == NULL) {
-        fprintf(stderr,"ERROR, no such host\n");
-        exit(0);
-    }
-
-    bzero((char *) &serv_addr, sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    bcopy((char *)server->h_addr, 
-         (char *)&serv_addr.sin_addr.s_addr,
-         server->h_length);
-    serv_addr.sin_port = htons(portno);
-    if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
-        error("ERROR connecting");
-
-    //number of | is given by number of rows - 1
-    //so number of characters is rows * columns * (rows-1)
-
-    bzero(buffer,1024);
-    int i;
-    for(i = 0; i < g_size; i++){
-        int j;
-        for(j = 0; j < g_size; j++){
-            char str_elem[2];
-            sprintf(str_elem, "%d", ramsey_g[i * g_size + j]);
-            if(j < g_size -1) 
-                strcat(str_elem, ",");
-            printf("%s\n",str_elem);
-            strcat(buffer, str_elem);
-            printf("%s\n",buffer);
-        }
-        if(i < g_size-1)
-            strcat(buffer, "|");
-
-    }
-    printf(buffer);
-    //strncpy(buffer,test,1023);
-
-    n = write(sockfd,buffer,strlen(buffer));
-    if (n < 0) 
-         error("ERROR writing to socket");
-    bzero(buffer,1024);
-    n = read(sockfd,buffer,1023);
-    if (n < 0) 
-         error("ERROR reading from socket");
-    printf("%s\n",buffer);
-    close(sockfd);
-}
-
-
 /*
  ***
  *** returns the number of monochromatic cliques in the graph presented to
@@ -160,6 +94,78 @@ void SendGraph(int *ramsey_g, int g_size){
  *** graph is stored in row-major order
  *** only checks values above diagonal
  */
+
+
+
+void SendBuffer(char *buffer, int buffer_size){
+	int sockfd, portno, n;
+	struct sockaddr_in serv_addr;
+	struct hostent *server;
+
+	portno = 9999;
+	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	
+	if(sockfd < 0)
+		error("ERROR opening socket");
+	
+	char *host_address = "localhost";
+
+	server = gethostbyname(host_address);
+
+	if(server == NULL){
+		fprintf(stderr, "ERROR, no such host\n");
+		exit(0);
+	}
+
+	
+	bzero((char *) &serv_addr, sizeof(serv_addr));
+	serv_addr.sin_family = AF_INET;
+
+	bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+	
+	serv_addr.sin_port = htons(portno);
+	
+	if(connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
+		error("ERROR connecting");
+	
+	n = write(sockfd, buffer, buffer_size);
+	
+	if(n < 0)
+		error("ERROR writing to socket");
+	
+	close(sockfd);
+		
+}
+
+void SendGraph(int *ramsey_g, int g_size){
+	char str[4];
+	sprintf(str, "%d", g_size);
+	SendBuffer(str, 4);
+	int buffer_size = 1024;	
+	char *buffer = malloc(buffer_size*sizeof(char));
+	int i, j;
+	int elem_count = 0;
+
+	for(i = 0; i < g_size; i++){
+		
+		for(j = 0; j < g_size; j++){
+			buffer[elem_count] = ramsey_g[g_size*i + j] + '0';
+			elem_count++;
+			if(elem_count == 1024){
+				SendBuffer(buffer, buffer_size);
+				elem_count = 0;
+				bzero(buffer, buffer_size);
+			}	
+		}
+	}
+	
+	if(elem_count > 0)
+		SendBuffer(buffer, buffer_size);
+	free(buffer);
+
+}
+
+
 
 int CliqueCount(int *g,
 	     int gsize)
@@ -241,7 +247,8 @@ TrySolve(int *oldG,int oldGSize,int* biggest)
 {
 	int* newG = (int *)malloc((oldGSize+1)*(oldGSize+1)*sizeof(int));
 	CopyGraph(oldG,oldGSize,newG,oldGSize+1);
-	for(int j=0; j < (oldGSize+1); j++)
+	int j;
+	for(j=0; j < (oldGSize+1); j++)
         {
                 if(rand() % 2 == 0)
 		{
