@@ -1,0 +1,127 @@
+import SocketServer
+import shelve
+import math
+#Get graph: client sends every graph as a number of blocks of 1024 bytes, have to update object and then shelve it 
+#first of all I should save the clients address and then update only that object
+#client should send size to begin with to determine if it's the largest yet, and if it is update the object
+#if it is not it should rather send the biggest graph available so that the client may update itself
+#
+class ComputeNode:
+
+	def __init__(self, address):
+		self.address = address
+		self.graph = ""
+		self.receiving = True
+		self.size = 0
+		self.nmbr_blocks = 0
+		self.block_size = 1024.0
+	
+	def resetGraph(self):
+		self.graph = ""	
+	def setGraph(self, graph):
+		self.graph += graph
+	
+	def setSize(self, size):
+		self.size = size
+	
+	def setNmbrBlocks(self):
+		if(self.size == 0):
+			print "SIZE HAS NOT BEEN SET"
+		self.nmbr_blocks = math.ceil(self.size**2/self.block_size)
+	def decreaseNmbrBlocks(self):
+		self.nmbr_blocks -= 1
+	
+	def getNmbrBlocks(self):
+		return self.nmbr_blocks
+
+	def  getSize(self):
+		return self.size
+	
+	def setReceive(self, rec):
+		self.receiving = rec
+	
+	def getReceive(self):
+		return self.receiving
+
+
+global d
+global bestGraph #represents the best ComputeNode object with key 'best'
+class MyTCPHandler(SocketServer.BaseRequestHandler):
+
+	def handle(self):
+		
+		d = shelve.open("ComputeNodes.db")	
+		self.data = self.request.recv(1024).strip()
+		print "{} wrote:".format(self.client_address[0])
+		print len(self.data)
+		key = self.client_address[0]
+		
+		if d.has_key(key):
+			cNode = d[key]
+			print "Has key to cNode"
+			print "Cnode number of blocks left: ", cNode.getNmbrBlocks()
+			if cNode.getReceive():
+				if cNode.getNmbrBlocks() == 1:
+					cNode.setReceive(False)
+					print "last block transfering", self.data
+							
+					cNode.setGraph(self.data.strip('\0'))
+					cNode.decreaseNmbrBlocks()
+					d[key] = cNode
+				
+					if cNode.getSize() > d['best'].getSize():
+						d['best'] = cNode
+				else:
+					cNode.setGraph(self.data.strip('\0'))
+					cNode.decreaseNmbrBlocks()
+					d[key] = cNode
+				
+			else:
+				print "THIS IS BEFORE ERROR: ", self.data.strip('\0')
+				size = int(self.data.strip('\0'))
+				if size < 400:
+					cNode.setSize(size)
+				print "Size has been set to: ", cNode.getSize()
+				cNode.setNmbrBlocks()
+				print "Number of blocks have been set: ", cNode.getNmbrBlocks()
+				cNode.setReceive(True)
+				cNode.resetGraph()
+				d[key] = cNode
+			#	if d.has_key('best'):
+			#		if cNode.getSize() > d['best'].getSize():
+			#			d['best'] = cNode
+			#			print "new biggest size: ", size, " from old contributor"
+			#	else:
+			#		d['best'] = cNode
+		else:
+			cNode  = ComputeNode(key)
+			
+			size = int(self.data.strip('\0'))
+			if(size < 400):
+				cNode.setSize(int(self.data.strip('\0')))
+			print "Size has been set to: ", cNode.getSize()
+			cNode.setNmbrBlocks()
+			print "Number of blocks have been set: ", cNode.getNmbrBlocks()
+			cNode.setReceive(True)
+			d[key] = cNode
+			if not d.has_key('best'):
+			#	if cNode.getSize() > d['best'].getSize():
+				#	d['best'] = cNode
+					#print "New biggest size ", cNode.getSize(), " from new contributor"
+		#	else:
+				print "setting new and first best: ", cNode.address
+				d['best'] = cNode
+		d.close() 
+
+
+
+if __name__ == "__main__":
+	HOST, PORT = "localhost", 9999
+	server = SocketServer.TCPServer((HOST, PORT), MyTCPHandler)
+	d = shelve.open("ComputeNodes.db")
+	if d.has_key('best'):
+		print "Best from db: ", d['best'].getSize()
+		print "With graph: ", d['best'].graph
+	d.close()
+	server.serve_forever()
+
