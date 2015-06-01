@@ -214,19 +214,19 @@ int* RequestGraph(int *ramsey_g, int *size_holder){
 
 	if(n < 0)
 		error("ERROR opening socket");
+	
+	int *new_ramsey_g;
 	int graph_size = atoi(size_buffer);
 	*size_holder = graph_size;
+	if(graph_size == 0){
+		new_ramsey_g = malloc(sizeof(int));
+		return new_ramsey_g;
+	}
+
 	fprintf(stdout, "%d\n", graph_size);
-	int tries = (graph_size*graph_size / 1024) + 1;
-	int *new_ramsey_g;
 	new_ramsey_g = malloc(graph_size*graph_size*sizeof(int));
 	fprintf(stdout, "%d\n", graph_size*graph_size*sizeof(char));		
-	char *block_buffer = malloc(1024*sizeof(char));
 	
-	//in = read(sockfd, block_buffer, 1024);
-	//if (n < 0){
-	//	error("ERROR reading from host");	
-	//}
 	char * string_buffer = malloc(graph_size*graph_size*sizeof(char));
 	int len = 0;
 	ioctl(sockfd, FIONREAD, &len);
@@ -240,7 +240,6 @@ int* RequestGraph(int *ramsey_g, int *size_holder){
 	for(i = 0; i < graph_size; i++){
 		for(j = 0; j < graph_size; j++){
 			new_ramsey_g[i*graph_size + j] = string_buffer[i*graph_size + j] - '0';
-			fprintf(stdout, "%d", new_ramsey_g[i*graph_size + j]); 
 		}
 	
 	}
@@ -422,8 +421,6 @@ main(int argc,char *argv[])
 	int* biggest=(int *)malloc(sizeof(int));
 	int *t_size = malloc(sizeof(int));
 	int* t = RequestGraph(g, t_size); //hopefully get the newest graph from server somewhere
-        fprintf(stdout, "%s\n", "HELLO");
-	fprintf(stdout, "%d\n", *t_size);
 	*biggest = *t_size+1;
 	TrySolve(t,*t_size,biggest);
         g[0]=1;

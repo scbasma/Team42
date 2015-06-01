@@ -56,9 +56,12 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
 		key = self.client_address[0]
 
 		def GraphRequest(request):
-			best = d['best']
-			request.sendall(str(best.getSize()))
-			request.sendall(best.graph)
+			if d.has_key('best'):
+				best = d['best']
+				request.sendall(str(best.getSize()))
+				request.sendall(best.graph)
+			else:
+				request.sendall('0')
 		
 		def ReceiveSize(cNode, size):
 			print "Receiving Size"
@@ -67,6 +70,8 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
 			cNode.resetGraph()
 			cNode.setReceive(True)
 			d[key] = cNode
+			if not d.has_key('best'):
+				d['best'] = cNode
 
 		def ReceiveBlock(cNode):
 			print "Receiving Block"
