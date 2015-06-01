@@ -215,7 +215,7 @@ int* RequestGraph(int *ramsey_g, int *size_holder){
 	if(n < 0)
 		error("ERROR opening socket");
 	int graph_size = atoi(size_buffer);
-	size_holder = &graph_size;
+	*size_holder = graph_size;
 	fprintf(stdout, "%d\n", graph_size);
 	int tries = (graph_size*graph_size / 1024) + 1;
 	int *new_ramsey_g;
@@ -424,8 +424,8 @@ main(int argc,char *argv[])
 	int* t = RequestGraph(g, t_size); //hopefully get the newest graph from server somewhere
         fprintf(stdout, "%s\n", "HELLO");
 	fprintf(stdout, "%d\n", *t_size);
-	*biggest = 64;
-	TrySolve(t,63,biggest);
+	*biggest = *t_size+1;
+	TrySolve(t,*t_size,biggest);
         g[0]=1;
 	
 	TrySolve(g,1,biggest);
