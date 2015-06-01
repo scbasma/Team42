@@ -124,20 +124,22 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
 					d[key].updateTaboo(taboo)
 					cNode = d[key]
 					d['best'] = cNode
+					self.request(sendall("0"))
 				else:
 					cNode = ComputeNode(key)
 					cNode.updateTaboo(taboo)
 					d[key] = cNode
 					d['best'] = cNode	
+					self.request(sendall("0"))
 						
 			
 		print "{} wrote:".format(self.client_address[0])
 		print len(self.data)
+		if(int(self.data.strip('\0')[:3]) == 299):
+				ReceiveTaboo(self.request)
 		if(len(self.data) == 4):
 			if(int(self.data.strip('\0')) == 309):
 				GraphRequest(self.request)
-			elif(int(self.data.strip('\0')[:3]) == 299):
-				ReceiveTaboo(self.request)
 			else:	
 				
 				if d.has_key(key):
