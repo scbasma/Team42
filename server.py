@@ -114,8 +114,9 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
 			
 			taboo = self.data.strip('\0')[3:]
 			if d.has_key('best'):
-				if len(taboo) != d['best'].getSize():
-					self.request.sendall("-1")
+				if len(taboo) <= d['best'].getSize():
+				        print "SENDING -1"	
+                                        self.request.sendall("-1")
 				else:
 					self.request.sendall("0")
 					d['best'].updateTaboo(taboo)
