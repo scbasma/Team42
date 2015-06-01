@@ -421,7 +421,8 @@ main(int argc,char *argv[])
 	int* biggest=(int *)malloc(sizeof(int));
 	int *t_size = malloc(sizeof(int));
 	int* t = RequestGraph(g, t_size); //hopefully get the newest graph from server somewhere
-	*biggest = *t_size+1;
+	*biggest = *t_size;
+	fprintf(stdout, "\n%d\n", *t_size);
 	TrySolve(t,*t_size,biggest);
         g[0]=1;
 	
