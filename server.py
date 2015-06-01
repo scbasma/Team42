@@ -15,9 +15,11 @@ class ComputeNode:
 		self.size = 0
 		self.nmbr_blocks = 0
 		self.block_size = 1024.0
+		self.taboo_list = ""
 	
 	def resetGraph(self):
 		self.graph = ""	
+	
 	def setGraph(self, graph):
 		self.graph += graph
 	
@@ -28,6 +30,7 @@ class ComputeNode:
 		if(self.size == 0):
 			print "SIZE HAS NOT BEEN SET"
 		self.nmbr_blocks = math.ceil(self.size**2/self.block_size)
+	
 	def decreaseNmbrBlocks(self):
 		self.nmbr_blocks -= 1
 	
@@ -42,6 +45,9 @@ class ComputeNode:
 	
 	def getReceive(self):
 		return self.receiving
+	
+	def updateTaboo(self, taboo):
+		self.taboo_list += taboo
 
 
 global d
@@ -82,19 +88,51 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
 				d[key] = cNode
 				
 				if cNode.getSize() > d['best'].getSize():
+					taboo_list = d['best'].taboo_list
+					cNode.taboo_list = taboo_list
 					d['best'] = cNode
 			else:
 				cNode.setGraph(self.data.strip('\0'))
 				cNode.decreaseNmbrBlocks()
 				d[key] = cNode
 				
+		def TabooRequest(request):
+			print "TabooRequest"
+			if d.has_key('best'):
+				request.sendall(d['best'].taboo_list)
+			else:
+				request.sendall("-1")
 
+	
+		def ReceiveTaboo(request):
+			print "ReceiveTaboo"
+			
+			taboo = self.data.strip('\0')[3:]
+			if d.has_key('best'):
+				if len(taboo) != d['best'].getSize():
+					self.request.sendall("-1")
+				else:
+					self.request.sendall("0")
+					d['best'].updateTaboo(taboo)
+			else:
+				if d.has_key(key):
+					d[key].updateTaboo(taboo)
+					cNode = d[key]
+					d['best'] = cNode
+				else:
+					cNode = ComputeNode(key)
+					cNode.updateTaboo(taboo)
+					d[key] = cNode
+					d['best'] = cNode	
+						
 			
 		print "{} wrote:".format(self.client_address[0])
 		print len(self.data)
 		if(len(self.data) == 4):
 			if(int(self.data.strip('\0')) == 309):
 				GraphRequest(self.request)
+			elif(int(self.data.strip('\0')[:3]) == 299):
+				ReceiveTaboo(self.request)
 			else:	
 				
 				if d.has_key(key):
