@@ -88,9 +88,14 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
 				d[key] = cNode
 				
 				if cNode.getSize() > d['best'].getSize():
-					taboo_list = d['best'].taboo_list
-					cNode.taboo_list = taboo_list
+					if hasattr(d['best'], 'taboo_list') and hasattr(cNode, 'taboo_list'):
+						taboo_list = d['best'].taboo_list
+						cNode.taboo_list = taboo_list
 					d['best'] = cNode
+					print "New best with size: ", cNode.getSize()
+					print cNode.graph
+					print
+					print
 			else:
 				cNode.setGraph(self.data.strip('\0'))
 				cNode.decreaseNmbrBlocks()
