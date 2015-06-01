@@ -52,65 +52,77 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
 		
 		d = shelve.open("ComputeNodes.db")	
 		self.data = self.request.recv(1024).strip()
-		print "{} wrote:".format(self.client_address[0])
-		print len(self.data)
-		key = self.client_address[0]
 		
-		if d.has_key(key):
-			cNode = d[key]
-			print "Has key to cNode"
-			print "Cnode number of blocks left: ", cNode.getNmbrBlocks()
-			if cNode.getReceive():
-				if cNode.getNmbrBlocks() == 1:
-					cNode.setReceive(False)
-					print "last block transfering", self.data
-							
-					cNode.setGraph(self.data.strip('\0'))
-					cNode.decreaseNmbrBlocks()
-					d[key] = cNode
-				
-					if cNode.getSize() > d['best'].getSize():
-						d['best'] = cNode
-				else:
-					cNode.setGraph(self.data.strip('\0'))
-					cNode.decreaseNmbrBlocks()
-					d[key] = cNode
-				
-			else:
-				print "THIS IS BEFORE ERROR: ", self.data.strip('\0')
-				size = int(self.data.strip('\0'))
-				if size < 400:
-					cNode.setSize(size)
-				print "Size has been set to: ", cNode.getSize()
-				cNode.setNmbrBlocks()
-				print "Number of blocks have been set: ", cNode.getNmbrBlocks()
-				cNode.setReceive(True)
-				cNode.resetGraph()
-				d[key] = cNode
-			#	if d.has_key('best'):
-			#		if cNode.getSize() > d['best'].getSize():
-			#			d['best'] = cNode
-			#			print "new biggest size: ", size, " from old contributor"
-			#	else:
-			#		d['best'] = cNode
-		else:
-			cNode  = ComputeNode(key)
-			
-			size = int(self.data.strip('\0'))
-			if(size < 400):
-				cNode.setSize(int(self.data.strip('\0')))
-			print "Size has been set to: ", cNode.getSize()
+		key = self.client_address[0]
+
+		def GraphRequest(request):
+			best = d['best']
+			request.sendall(str(best.getSize()))
+			request.sendall(best.graph)
+		
+		def ReceiveSize(cNode, size):
+			print "Receiving Size"
+			cNode.setSize(size)
 			cNode.setNmbrBlocks()
-			print "Number of blocks have been set: ", cNode.getNmbrBlocks()
+			cNode.resetGraph()
 			cNode.setReceive(True)
 			d[key] = cNode
-			if not d.has_key('best'):
-			#	if cNode.getSize() > d['best'].getSize():
-				#	d['best'] = cNode
-					#print "New biggest size ", cNode.getSize(), " from new contributor"
-		#	else:
-				print "setting new and first best: ", cNode.address
-				d['best'] = cNode
+
+		def ReceiveBlock(cNode):
+			print "Receiving Block"
+			if cNode.getNmbrBlocks() == 1:
+				cNode.setReceive(False)
+				cNode.setGraph(self.data.strip('\0'))
+				cNode.decreaseNmbrBlocks()
+				d[key] = cNode
+				
+				if cNode.getSize() > d['best'].getSize():
+					d['best'] = cNode
+			else:
+				cNode.setGraph(self.data.strip('\0'))
+				cNode.decreaseNmbrBlocks()
+				d[key] = cNode
+				
+
+			
+		print "{} wrote:".format(self.client_address[0])
+		print len(self.data)
+		if(len(self.data) == 4):
+			if(int(self.data.strip('\0')) == 309):
+				GraphRequest(self.request)
+			else:	
+				
+				if d.has_key(key):
+					cNode = d[key]
+					size = int(self.data.strip('\0'))
+					ReceiveSize(cNode, size)
+				else:
+					cNode = ComputeNode(key)
+					size = int(self.data.strip('\0'))
+					ReceiveSize(cNode, size)
+		else:
+			cNode = d[key]
+			if cNode.getReceive():
+				ReceiveBlock(cNode)
+		
+			
+					
+		
+#		if d.has_key(key):
+#			cNode = d[key]
+#			if cNode.getReceive():
+#				ReceiveBlock(cNode)
+#				
+#			else:
+#				size = int(self.data.strip('\0'))
+#				if size < 300:
+#					ReceiveSize(cNode, size)
+#		else:
+#			cNode  = ComputeNode(key)
+#			
+#			size = int(self.data.strip('\0'))
+#			if(size < 300):
+#				ReceiveSize(cNode, size)
 		d.close() 
 
 

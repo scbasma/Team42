@@ -7,10 +7,10 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <netdb.h> 
-
+#include <netdb.h>
+#include <netinet/tcp.h> 
+#include <sys/ioctl.h>
 #define EDGEONLY
-
 
 #include "fifo.h"	/* for taboo list */
 
@@ -166,6 +166,90 @@ void SendGraph(int *ramsey_g, int g_size){
 }
 
 
+int* RequestGraph(int *ramsey_g, int *size_holder){
+//send request to server to get an update
+//get size from server
+//realloc pointer to approriate size
+//get graph in blocks
+	int sockfd, portno, n;
+	struct sockaddr_in serv_addr;
+	struct hostent *server;
+
+	portno = 9999;
+	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+	if(sockfd < 0)
+		error("ERROR opening socket");
+	
+														
+	char *host_address = "localhost";
+
+	server = gethostbyname(host_address);
+
+	if(server == NULL){
+		fprintf(stderr, "ERROR, no such host\n");
+		exit(0);
+	}
+
+	
+	bzero((char *) &serv_addr, sizeof(serv_addr));
+	serv_addr.sin_family = AF_INET;
+
+	bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+	
+	serv_addr.sin_port = htons(portno);
+	
+	if(connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
+		error("ERROR connecting");
+	
+	char message_buffer[4];
+	sprintf(message_buffer, "%d", 309);	
+	n = write(sockfd, message_buffer, 4);
+	
+	if(n < 0)
+		error("ERROR writing to socket");
+	
+	char size_buffer[4];
+	n = read(sockfd, size_buffer, 2);
+
+	if(n < 0)
+		error("ERROR opening socket");
+	int graph_size = atoi(size_buffer);
+	size_holder = &graph_size;
+	fprintf(stdout, "%d\n", graph_size);
+	int tries = (graph_size*graph_size / 1024) + 1;
+	int *new_ramsey_g;
+	new_ramsey_g = malloc(graph_size*graph_size*sizeof(int));
+	fprintf(stdout, "%d\n", graph_size*graph_size*sizeof(char));		
+	char *block_buffer = malloc(1024*sizeof(char));
+	
+	//in = read(sockfd, block_buffer, 1024);
+	//if (n < 0){
+	//	error("ERROR reading from host");	
+	//}
+	char * string_buffer = malloc(graph_size*graph_size*sizeof(char));
+	int len = 0;
+	ioctl(sockfd, FIONREAD, &len);
+	if (len > 0) {
+  		len = read(sockfd, string_buffer, len);
+	}
+	fprintf(stdout, "%s\n\n", string_buffer, graph_size*graph_size);	
+	
+	int i, j;
+
+	for(i = 0; i < graph_size; i++){
+		for(j = 0; j < graph_size; j++){
+			new_ramsey_g[i*graph_size + j] = string_buffer[i*graph_size + j] - '0';
+			fprintf(stdout, "%d", new_ramsey_g[i*graph_size + j]); 
+		}
+	
+	}
+	free(string_buffer);			
+	close(sockfd);
+	return new_ramsey_g;
+
+}
+
 
 int CliqueCount(int *g,
 	     int gsize)
@@ -317,6 +401,7 @@ TrySolve(int *oldG,int oldGSize,int* biggest)
 int
 main(int argc,char *argv[])
 {
+	
 	int *g;
 	int *new_g;
 	int gsize;
@@ -335,9 +420,14 @@ main(int argc,char *argv[])
 	}
 	memset(g,0,gsize*gsize*sizeof(int));
 	int* biggest=(int *)malloc(sizeof(int));
-        *biggest = 0;
-	TrySolve(g,1,biggest);
+	int *t_size = malloc(sizeof(int));
+	int* t = RequestGraph(g, t_size); //hopefully get the newest graph from server somewhere
+        fprintf(stdout, "%s\n", "HELLO");
+	fprintf(stdout, "%d\n", *t_size);
+	*biggest = 64;
+	TrySolve(t,63,biggest);
         g[0]=1;
+	
 	TrySolve(g,1,biggest);
 	return(0);
 }
