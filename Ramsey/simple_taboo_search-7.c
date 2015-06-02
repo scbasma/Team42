@@ -299,6 +299,76 @@ int* RequestGraph(int *ramsey_g, int *size_holder){
 
 }
 
+int* RequestTaboo(){
+    
+	int sockfd, portno, n;
+	struct sockaddr_in serv_addr;
+	struct hostent *server;
+
+	portno = 9999;
+	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+	if(sockfd < 0)
+		error("ERROR opening socket");
+	
+														
+	char *host_address = "localhost";
+
+	server = gethostbyname(host_address);
+
+	if(server == NULL){
+		fprintf(stderr, "ERROR, no such host\n");
+		exit(0);
+	}
+
+	
+	bzero((char *) &serv_addr, sizeof(serv_addr));
+	serv_addr.sin_family = AF_INET;
+
+	bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+	
+	serv_addr.sin_port = htons(portno);
+	
+	if(connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
+		error("ERROR connecting");
+	
+	char message_buffer[4];
+	sprintf(message_buffer, "%d", 303);	
+	n = write(sockfd, message_buffer, 4);
+	
+	if(n < 0)
+		error("ERROR writing to socket");
+    char size_buffer[4];
+	n = read(sockfd, size_buffer, 2);
+    if(n < 0)
+        error("ERROR reading from socket");
+    
+    int taboo_size = atoi(size_buffer);
+
+    fprintf(stdout, "%d\n", taboo_size);
+	char * string_buffer;
+	int len = 0;
+	ioctl(sockfd, FIONREAD, &len);
+	if (len > 0) {
+        string_buffer = malloc(len*sizeof(char));
+  		len = read(sockfd, string_buffer, len);
+	}
+
+    int *new_taboo_list = malloc(len*sizeof(int));	
+    int i, j;
+    
+    fprintf(stdout, "%s\n", "LENGTH OF TABOOLIST");
+    fprintf(stdout, "%d\n", len);
+    fprintf(stdout, "%s\n", "NEW TABOO LIST RECEIVED");
+    for(i = 0; i < len; i++){
+        new_taboo_list[i] = string_buffer[i] - '0';  
+        fprintf(stdout, "%d", new_taboo_list[i]);
+    }
+    close(sockfd);
+    free(string_buffer);
+    return new_taboo_list;
+	
+}
 
 int CliqueCount(int *g,
 	     int gsize)
@@ -499,6 +569,7 @@ main(int argc,char *argv[])
         int* t = RequestGraph(g, t_size); //hopefully get the newest graph from server somewhere
         *biggest = *t_size;
         fprintf(stdout, "\n%d\n", *t_size);
+        int* t_list = RequestTaboo();
         TrySolve(t,*t_size,biggest);
         free(g);
         free(biggest);
