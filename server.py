@@ -70,7 +70,6 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
 				request.sendall('0')
 		
 		def ReceiveSize(cNode, size):
-			print "Receiving Size"
 			cNode.setSize(size)
 			cNode.setNmbrBlocks()
 			cNode.resetGraph()
@@ -80,7 +79,6 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
 				d['best'] = cNode
 
 		def ReceiveBlock(cNode):
-			print "Receiving Block"
 			if cNode.getNmbrBlocks() == 1:
 				cNode.setReceive(False)
 				cNode.setGraph(self.data.strip('\0'))
@@ -102,20 +100,18 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
 				d[key] = cNode
 				
 		def TabooRequest(request):
-			print "TabooRequest"
 			if d.has_key('best'):
-                                request.sendall(str([d['best'].taboo_list[i:i+d['best'].getSize()] for i in range(1, len(d['best'].taboo_list), d['best'].getSize())]))
-                                print "Sending this taboo: ", d['best'].taboo_list
+                                #print "Number of taboos: ", (str(len([d['best'].taboo_list[i:i+d['best'].getSize()] for i in range(1, len(d['best'].taboo_list), d['best'].getSize())])))
+                       #         request.sendall(str(len([d['best'].taboo_list[i:i+d['best'].getSize()] for i in range(1, len(d['best'].taboo_list), d['best'].getSize())])))
+                                request.sendall(str(len(d['best'].taboo_list)))
 				request.sendall(d['best'].taboo_list)
 			else:
 				request.sendall("-1")
 
 	
 		def ReceiveTaboo(request):
-			print "ReceiveTaboo"
 			
 			taboo = self.data.strip('\0')[3:]
-                        print "taboo received: ", taboo
 			if d.has_key('best'):
                                 best = d['best']
 				if len(taboo) < best.getSize():
@@ -133,12 +129,10 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
 					d[key].updateTaboo(taboo)
     					cNode = d[key]
 					d['best'] = cNode
-                                        print "New best with taboo list"
 					self.request(sendall("0"))
 				else:
 					cNode = ComputeNode(key)
 					cNode.updateTaboo(taboo)
-                                        print "New best with taboo list"
 					d[key] = cNode
 					d['best'] = cNode	
 					self.request(sendall("0"))
