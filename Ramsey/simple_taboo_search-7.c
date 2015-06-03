@@ -338,29 +338,30 @@ int* RequestTaboo(){
 	
 	if(n < 0)
 		error("ERROR writing to socket");
-    char size_buffer[4];
-	n = read(sockfd, size_buffer, 2);
+    char size_buffer[15];
+    n = read(sockfd, size_buffer, 15);
     if(n < 0)
         error("ERROR reading from socket");
-    
     int taboo_size = atoi(size_buffer);
 
     fprintf(stdout, "%d\n", taboo_size);
-	char * string_buffer;
-	int len = 0;
-	ioctl(sockfd, FIONREAD, &len);
-	if (len > 0) {
-        string_buffer = malloc(len*sizeof(char));
-  		len = read(sockfd, string_buffer, len);
-	}
+	char * string_buffer = malloc(taboo_size*sizeof(char));
+	n = read(sockfd, string_buffer, taboo_size);
 
-    int *new_taboo_list = malloc(len*sizeof(int));	
+//	int len = 0;
+//	ioctl(sockfd, FIONREAD, &len);
+//	if (len > 0) {
+//        string_buffer = malloc(len*sizeof(char));
+//  		len = read(sockfd, string_buffer, len);
+//	}
+
+    int *new_taboo_list = malloc(taboo_size*sizeof(int));	
     int i, j;
     
     fprintf(stdout, "%s\n", "LENGTH OF TABOOLIST");
-    fprintf(stdout, "%d\n", len);
+    fprintf(stdout, "%d\n", taboo_size);
     fprintf(stdout, "%s\n", "NEW TABOO LIST RECEIVED");
-    for(i = 0; i < len; i++){
+    for(i = 0; i < taboo_size; i++){
         new_taboo_list[i] = string_buffer[i] - '0';  
         fprintf(stdout, "%d", new_taboo_list[i]);
     }
