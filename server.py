@@ -104,6 +104,7 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
 		def TabooRequest(request):
 			print "TabooRequest"
 			if d.has_key('best'):
+				request.sendall(str(len(d['best'].taboo_list)))
 				request.sendall(d['best'].taboo_list)
 			else:
 				request.sendall("-1")
