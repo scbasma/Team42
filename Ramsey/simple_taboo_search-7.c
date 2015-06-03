@@ -22,6 +22,14 @@
 #ifdef __APPLE__
 #  define error printf
 #endif
+
+
+time_t start, end;
+
+
+
+
+
 /***
  *** example of very simple search for R(7,7) counter examples
  ***
@@ -216,7 +224,7 @@ int SendTaboo(int *ramsey_g, int g_size){
 }
 
 
-int* RequestGraph(int *ramsey_g, int *size_holder){
+int* RequestGraph( int *size_holder){
 //send request to server to get an update
 //get size from server
 //realloc pointer to approriate size
@@ -476,6 +484,7 @@ TrySolve(int *oldG,int oldGSize,int* biggest)
 				*biggest=oldGSize+1;
 				printf("Eureka!  Counter-example found!\n");
 				PrintGraph(newG,oldGSize+1);
+				time(&start);
 				if(oldGSize+1 > 60)
 					SendGraph(newG,oldGSize+1);
                 	}
@@ -486,6 +495,20 @@ TrySolve(int *oldG,int oldGSize,int* biggest)
 		int last_count = count+1;
 		int best_count = last_count+1;
 		int best_i;
+		time(&end);
+		int dif = difftime(end, start);
+		if(dif > 60){
+			int *size = malloc(sizeof(int));
+			int *check = RequestGraph(size);
+			time(&start);
+			if(*size > oldGSize){
+				fprintf(stdout, "%s", "Requested graph, new size is bigger, start over");
+				return (0);
+			}else {
+				fprintf(stdout, "%s", "new size is not bigger, length is: ");
+				fprintf(stdout, "%d\n", *size);
+			}
+		}
 		for(i=0; i < (oldGSize+1); i++)
 		{
 			newG[i*(oldGSize+1)+oldGSize] = 1 - newG[i*(oldGSize+1)+oldGSize];
@@ -496,9 +519,6 @@ TrySolve(int *oldG,int oldGSize,int* biggest)
                     tempG[j]=newG[j*(oldGSize+1) + oldGSize];
                 }
 				FIFOInsertGraph(taboo_list,tempG,oldGSize+1);
-                if(!SendTaboo(tempG,oldGSize+1)){
-                    return(0);
-                }
                 free(tempG);
 				if(oldGSize+1>*biggest)
                         	{
@@ -534,9 +554,7 @@ TrySolve(int *oldG,int oldGSize,int* biggest)
             tempG[j]=newG[j*(oldGSize+1) + oldGSize];
         }
         FIFOInsertGraph(taboo_list,tempG,oldGSize+1);
-        if(!SendTaboo(tempG,oldGSize+1)){
-            return(0);
-        }
+
         free(tempG);
 	}
 	free(newG);
@@ -566,10 +584,10 @@ main(int argc,char *argv[])
         memset(g,0,gsize*gsize*sizeof(int));
         int* biggest=(int *)malloc(sizeof(int));
         int *t_size = malloc(sizeof(int));
-        int* t = RequestGraph(g, t_size); //hopefully get the newest graph from server somewhere
+        int* t = RequestGraph(t_size); //hopefully get the newest graph from server somewhere
         *biggest = *t_size;
         fprintf(stdout, "\n%d\n", *t_size);
-        int* t_list = RequestTaboo();
+	time(&start);
         TrySolve(t,*t_size,biggest);
         free(g);
         free(biggest);
