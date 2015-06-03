@@ -90,7 +90,7 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
 				if cNode.getSize() > d['best'].getSize():
 					if hasattr(d['best'], 'taboo_list') and hasattr(cNode, 'taboo_list'):
 						taboo_list = d['best'].taboo_list
-						cNode.taboo_list = taboo_list
+						cNode.taboo_list = ""
 					d['best'] = cNode
 					print "New best with size: ", cNode.getSize()
 					print cNode.graph
@@ -114,31 +114,45 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
 			print "ReceiveTaboo"
 			
 			taboo = self.data.strip('\0')[3:]
+                        print "taboo received: ", taboo
 			if d.has_key('best'):
-				if len(taboo) != d['best'].getSize():
-					self.request.sendall("-1")
+                                best = d['best']
+				if len(taboo) < best.getSize():
+				        print "SENDING -1"	
+                                        self.request.sendall("-1")
 				else:
 					self.request.sendall("0")
-					d['best'].updateTaboo(taboo)
+                                        columns = [best.taboo_list[i:i+best.getSize()] for i in range(0, len(best.taboo_list), best.getSize())]
+                                        if taboo not in columns:
+                                            print "Updated best with taboo"
+					    best.updateTaboo(taboo)
+                                            d['best'] = best
 			else:
 				if d.has_key(key):
 					d[key].updateTaboo(taboo)
-					cNode = d[key]
+    					cNode = d[key]
 					d['best'] = cNode
+                                        print "New best with taboo list"
+					self.request(sendall("0"))
 				else:
 					cNode = ComputeNode(key)
 					cNode.updateTaboo(taboo)
+                                        print "New best with taboo list"
 					d[key] = cNode
 					d['best'] = cNode	
+					self.request(sendall("0"))
 						
 			
 		print "{} wrote:".format(self.client_address[0])
 		print len(self.data)
+		if(int(self.data.strip('\0')[:3]) == 299):
+				ReceiveTaboo(self.request)
 		if(len(self.data) == 4):
 			if(int(self.data.strip('\0')) == 309):
 				GraphRequest(self.request)
-			elif(int(self.data.strip('\0')[:3]) == 299):
-				ReceiveTaboo(self.request)
+                        
+		        elif(int(self.data.strip('\0')[:3]) == 303):
+				TabooRequest(self.request)
 			else:	
 				
 				if d.has_key(key):
@@ -183,6 +197,7 @@ if __name__ == "__main__":
 	if d.has_key('best'):
 		print "Best from db: ", d['best'].getSize()
 		print "With graph: ", d['best'].graph
+                print "with taboolist", d['best'].taboo_list
 	d.close()
 	server.serve_forever()
 

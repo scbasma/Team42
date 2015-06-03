@@ -165,6 +165,56 @@ void SendGraph(int *ramsey_g, int g_size){
 
 }
 
+int SendTaboo(int *ramsey_g, int g_size){
+    int sockfd, portno, n;
+    struct sockaddr_in serv_addr;
+    struct hostent *server;
+    
+    portno = 9999;
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    
+    if(sockfd < 0)
+		error("ERROR opening socket");
+    
+    char *host_address = "localhost";
+
+	server = gethostbyname(host_address);
+    
+    if(server == NULL){
+		fprintf(stderr, "ERROR, no such host\n");
+		exit(0);
+	}
+    
+    bzero((char *) &serv_addr, sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    
+    bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+    
+    serv_addr.sin_port = htons(portno);
+    
+    if(connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
+		error("ERROR connecting");
+    
+    char message_buffer[4+g_size];
+    sprintf(message_buffer, "%d", 299);	
+    
+    int i;
+    for(i = 0; i < g_size; i++){
+        message_buffer[i+3] = ramsey_g[i] + '0';
+    }
+    message_buffer[3+g_size]='\0';
+    n = write(sockfd, message_buffer, 4+g_size);
+    
+    if(n < 0)
+		error("ERROR writing to socket");
+    char * string_buffer = malloc(3*sizeof(char));
+    read(sockfd, string_buffer, 3);
+    if(string_buffer[0]=='-'){
+        return(0);
+    }
+    return(1);
+}
+
 
 int* RequestGraph(int *ramsey_g, int *size_holder){
 //send request to server to get an update
@@ -249,6 +299,76 @@ int* RequestGraph(int *ramsey_g, int *size_holder){
 
 }
 
+int* RequestTaboo(){
+    
+	int sockfd, portno, n;
+	struct sockaddr_in serv_addr;
+	struct hostent *server;
+
+	portno = 9999;
+	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+	if(sockfd < 0)
+		error("ERROR opening socket");
+	
+														
+	char *host_address = "localhost";
+
+	server = gethostbyname(host_address);
+
+	if(server == NULL){
+		fprintf(stderr, "ERROR, no such host\n");
+		exit(0);
+	}
+
+	
+	bzero((char *) &serv_addr, sizeof(serv_addr));
+	serv_addr.sin_family = AF_INET;
+
+	bcopy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
+	
+	serv_addr.sin_port = htons(portno);
+	
+	if(connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
+		error("ERROR connecting");
+	
+	char message_buffer[4];
+	sprintf(message_buffer, "%d", 303);	
+	n = write(sockfd, message_buffer, 4);
+	
+	if(n < 0)
+		error("ERROR writing to socket");
+    char size_buffer[4];
+	n = read(sockfd, size_buffer, 2);
+    if(n < 0)
+        error("ERROR reading from socket");
+    
+    int taboo_size = atoi(size_buffer);
+
+    fprintf(stdout, "%d\n", taboo_size);
+	char * string_buffer;
+	int len = 0;
+	ioctl(sockfd, FIONREAD, &len);
+	if (len > 0) {
+        string_buffer = malloc(len*sizeof(char));
+  		len = read(sockfd, string_buffer, len);
+	}
+
+    int *new_taboo_list = malloc(len*sizeof(int));	
+    int i, j;
+    
+    fprintf(stdout, "%s\n", "LENGTH OF TABOOLIST");
+    fprintf(stdout, "%d\n", len);
+    fprintf(stdout, "%s\n", "NEW TABOO LIST RECEIVED");
+    for(i = 0; i < len; i++){
+        new_taboo_list[i] = string_buffer[i] - '0';  
+        fprintf(stdout, "%d", new_taboo_list[i]);
+    }
+    close(sockfd);
+    free(string_buffer);
+    return new_taboo_list;
+	
+}
 
 int CliqueCount(int *g,
 	     int gsize)
@@ -325,7 +445,7 @@ int CliqueCount(int *g,
     return(count);
 }
 
-void
+int
 TrySolve(int *oldG,int oldGSize,int* biggest)
 {
 	int* newG = (int *)malloc((oldGSize+1)*(oldGSize+1)*sizeof(int));
@@ -345,7 +465,7 @@ TrySolve(int *oldG,int oldGSize,int* biggest)
 		}
         }
 	int i=0;
-	void *taboo_list = FIFOInitEdge(TABOOSIZE);
+	void *taboo_list = FIFOInitGraph(TABOOSIZE);
 	while(1)
 	{
 		int count = CliqueCount(newG,oldGSize+1);
@@ -359,7 +479,9 @@ TrySolve(int *oldG,int oldGSize,int* biggest)
 				if(oldGSize+1 > 60)
 					SendGraph(newG,oldGSize+1);
                 	}
-			TrySolve(newG,oldGSize+1,biggest);
+			if(!TrySolve(newG,oldGSize+1,biggest)){
+                return(0);
+            }
 		}
 		int last_count = count+1;
 		int best_count = last_count+1;
@@ -369,7 +491,15 @@ TrySolve(int *oldG,int oldGSize,int* biggest)
 			newG[i*(oldGSize+1)+oldGSize] = 1 - newG[i*(oldGSize+1)+oldGSize];
                         count = CliqueCount(newG,oldGSize+1);
 			if(count==0){
-				FIFOInsertEdge(taboo_list,i,oldGSize);
+                int* tempG = (int *)malloc((oldGSize+1)*sizeof(int));
+                for(j=0; j < (oldGSize+1); j++){
+                    tempG[j]=newG[j*(oldGSize+1) + oldGSize];
+                }
+				FIFOInsertGraph(taboo_list,tempG,oldGSize+1);
+                if(!SendTaboo(tempG,oldGSize+1)){
+                    return(0);
+                }
+                free(tempG);
 				if(oldGSize+1>*biggest)
                         	{
                                 	*biggest=oldGSize+1;
@@ -378,21 +508,36 @@ TrySolve(int *oldG,int oldGSize,int* biggest)
 					if(oldGSize+1 > 60)
 						SendGraph(newG,oldGSize+1);
                         	}
-				TrySolve(newG,oldGSize+1,biggest);
+				if(!TrySolve(newG,oldGSize+1,biggest)){
+                    return(0);
+                }
 				continue;
 			}
-                        if((count < best_count) && !FIFOFindEdge(taboo_list,i,oldGSize))
+                        int* tempG = (int *)malloc((oldGSize+1)*sizeof(int));
+                        for(j=0; j < (oldGSize+1); j++){
+                            tempG[j]=newG[j*(oldGSize+1) + oldGSize];
+                        }
+                        if((count < best_count) && !FIFOFindGraph(taboo_list,tempG,oldGSize+1))
                         {
                         	best_count = count;
                         	best_i = i;
                         }
+                        free(tempG);
                         newG[i*(oldGSize+1)+oldGSize] = 1 - newG[i*(oldGSize+1)+oldGSize];
 		}
 		if(best_count > last_count) {
-			return;
+			return(1);
 		}
 		newG[best_i*(oldGSize+1)+oldGSize] = 1 - newG[best_i*(oldGSize+1)+oldGSize];
-		FIFOInsertEdge(taboo_list,best_i,oldGSize);
+        int* tempG = (int *)malloc((oldGSize+1)*sizeof(int));
+        for(j=0; j < (oldGSize+1); j++){
+            tempG[j]=newG[j*(oldGSize+1) + oldGSize];
+        }
+        FIFOInsertGraph(taboo_list,tempG,oldGSize+1);
+        if(!SendTaboo(tempG,oldGSize+1)){
+            return(0);
+        }
+        free(tempG);
 	}
 	free(newG);
 }
@@ -412,20 +557,23 @@ main(int argc,char *argv[])
 	int best_j;
 	void *taboo_list;
         srand(time(NULL));
-	gsize = 1;
-	g = (int *)malloc(gsize*gsize*sizeof(int));
-	if(g == NULL) {
-		exit(1);
-	}
-	memset(g,0,gsize*gsize*sizeof(int));
-	int* biggest=(int *)malloc(sizeof(int));
-	int *t_size = malloc(sizeof(int));
-	int* t = RequestGraph(g, t_size); //hopefully get the newest graph from server somewhere
-	*biggest = *t_size;
-	fprintf(stdout, "\n%d\n", *t_size);
-	TrySolve(t,*t_size,biggest);
-        g[0]=1;
-	
-	TrySolve(g,1,biggest);
+    while(1){
+        gsize = 1;
+        g = (int *)malloc(gsize*gsize*sizeof(int));
+        if(g == NULL) {
+            exit(1);
+        }
+        memset(g,0,gsize*gsize*sizeof(int));
+        int* biggest=(int *)malloc(sizeof(int));
+        int *t_size = malloc(sizeof(int));
+        int* t = RequestGraph(g, t_size); //hopefully get the newest graph from server somewhere
+        *biggest = *t_size;
+        fprintf(stdout, "\n%d\n", *t_size);
+        int* t_list = RequestTaboo();
+        TrySolve(t,*t_size,biggest);
+        free(g);
+        free(biggest);
+        free(t_size);
+    }
 	return(0);
 }
