@@ -61,11 +61,17 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
 		
 		key = self.client_address[0]
 
-		def GraphRequest(request):
+		def GraphRequest(request, data):
+			tab = data.split()
+			print data
+			print tab
+			size_requested = int(tab[1])
+			s = d['best'].graph
+			column = ''.join([s[i] for i in range(size_requested, int(math.sqrt(len(s))*(size_requested)+size_requested) + 1, d['best'].getSize())])
 			if d.has_key('best'):
 				best = d['best']
 				request.sendall(str(best.getSize()))
-				request.sendall(best.graph)
+				request.sendall(column)
 			else:
 				request.sendall('0')
 		
@@ -142,6 +148,10 @@ class MyTCPHandler(SocketServer.BaseRequestHandler):
 		print len(self.data)
 		if(int(self.data.strip('\0')[:3]) == 299):
 				ReceiveTaboo(self.request)
+
+		if(int(self.data.strip('\0')[:3]) == 309):
+			GraphRequest(self.request, self.data.strip('\0'));
+
 		if(len(self.data) == 4):
 			if(int(self.data.strip('\0')) == 309):
 				GraphRequest(self.request)

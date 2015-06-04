@@ -261,7 +261,9 @@ void RequestGraph(int *ramsey_g, int *size_holder,int sizeRequested){
 		error("ERROR connecting");
 	
 	char message_buffer[8];
+	bzero(&message_buffer, 8); 
 	sprintf(message_buffer, "%d %d", 309,sizeRequested);
+	
 	n = write(sockfd, message_buffer, 8);
 	
 	if(n < 0)
