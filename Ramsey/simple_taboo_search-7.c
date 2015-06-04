@@ -514,12 +514,7 @@ TrySolve(int *oldG,int oldGSize,int* biggest)
 			newG[i*(oldGSize+1)+oldGSize] = 1 - newG[i*(oldGSize+1)+oldGSize];
                         count = CliqueCount(newG,oldGSize+1);
 			if(count==0){
-                int* tempG = (int *)malloc((oldGSize+1)*sizeof(int));
-                for(j=0; j < (oldGSize+1); j++){
-                    tempG[j]=newG[j*(oldGSize+1) + oldGSize];
-                }
 				FIFOInsertEdge(taboo_list,i,oldGSize+1);
-                free(tempG);
 				if(oldGSize+1>*biggest)
                         	{
                                 	*biggest=oldGSize+1;
@@ -533,29 +528,19 @@ TrySolve(int *oldG,int oldGSize,int* biggest)
                 }
 				continue;
 			}
-                        int* tempG = (int *)malloc((oldGSize+1)*sizeof(int));
-                        for(j=0; j < (oldGSize+1); j++){
-                            tempG[j]=newG[j*(oldGSize+1) + oldGSize];
-                        }
                         if((count < best_count) && !FIFOFindEdge(taboo_list,i,oldGSize+1))
                         {
                         	best_count = count;
                         	best_i = i;
                         }
-                        free(tempG);
                         newG[i*(oldGSize+1)+oldGSize] = 1 - newG[i*(oldGSize+1)+oldGSize];
 		}
 		if(best_count > last_count) {
 			return(1);
 		}
 		newG[best_i*(oldGSize+1)+oldGSize] = 1 - newG[best_i*(oldGSize+1)+oldGSize];
-        int* tempG = (int *)malloc((oldGSize+1)*sizeof(int));
-        for(j=0; j < (oldGSize+1); j++){
-            tempG[j]=newG[j*(oldGSize+1) + oldGSize];
-        }
         FIFOInsertEdge(taboo_list,best_i,oldGSize+1);
 
-        free(tempG);
 	}
 	free(newG);
 }
