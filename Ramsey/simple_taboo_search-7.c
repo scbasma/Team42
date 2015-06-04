@@ -224,7 +224,7 @@ int SendTaboo(int *ramsey_g, int g_size){
 }
 
 
-int* RequestGraph( int *size_holder){
+void RequestGraph(int *ramsey_g, int *size_holder,int sizeRequested){
 //send request to server to get an update
 //get size from server
 //realloc pointer to approriate size
@@ -260,9 +260,9 @@ int* RequestGraph( int *size_holder){
 	if(connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
 		error("ERROR connecting");
 	
-	char message_buffer[4];
-	sprintf(message_buffer, "%d", 309);	
-	n = write(sockfd, message_buffer, 4);
+	char message_buffer[8];
+	sprintf(message_buffer, "%d %d", 309,sizeRequested);
+	n = write(sockfd, message_buffer, 8);
 	
 	if(n < 0)
 		error("ERROR writing to socket");
@@ -273,37 +273,46 @@ int* RequestGraph( int *size_holder){
 	if(n < 0)
 		error("ERROR opening socket");
 	
-	int *new_ramsey_g;
 	int graph_size = atoi(size_buffer);
 	*size_holder = graph_size;
-	if(graph_size == 0){
-		new_ramsey_g = malloc(sizeof(int));
-		return new_ramsey_g;
+    if(graph_size < sizeRequested ){
+        int j;
+        for(j=0; j < (sizeRequested); j++)
+        {
+            if(rand() % 2 == 0)
+            {
+                ramsey_g[j*(sizeRequested) + sizeRequested-1] = 0; // last column
+                ramsey_g[(sizeRequested-1)*(sizeRequested) + j] = 0; // last row
+            }
+            else
+            {
+                ramsey_g[j*(sizeRequested) + sizeRequested-1] = 1; // last column
+                ramsey_g[(sizeRequested-1)*(sizeRequested) + j] = 1; // last row
+            }
+        }
+		return;
 	}
 
-	fprintf(stdout, "%d\n", graph_size);
-	new_ramsey_g = malloc(graph_size*graph_size*sizeof(int));
-	fprintf(stdout, "%d\n", graph_size*graph_size*sizeof(char));		
+	fprintf(stdout, "%d\n", sizeRequested);
+	fprintf(stdout, "%d\n", sizeRequested*sizeof(char));
 	
-	char * string_buffer = malloc(graph_size*graph_size*sizeof(char));
+	char * string_buffer = malloc(sizeRequested*sizeof(char));
 	int len = 0;
 	ioctl(sockfd, FIONREAD, &len);
 	if (len > 0) {
   		len = read(sockfd, string_buffer, len);
 	}
-	fprintf(stdout, "%s\n\n", string_buffer, graph_size*graph_size);	
+	fprintf(stdout, "%s\n\n", string_buffer, sizeRequested);
 	
 	int i, j;
 
-	for(i = 0; i < graph_size; i++){
-		for(j = 0; j < graph_size; j++){
-			new_ramsey_g[i*graph_size + j] = string_buffer[i*graph_size + j] - '0';
-		}
+	for(i = 0; i < sizeRequested; i++){
+        ramsey_g[i*sizeRequested + sizeRequested-1] = string_buffer[i*sizeRequested + sizeRequested-1] - '0';
 	
 	}
 	free(string_buffer);			
 	close(sockfd);
-	return new_ramsey_g;
+	return;
 
 }
 
@@ -458,21 +467,8 @@ TrySolve(int *oldG,int oldGSize,int* biggest)
 {
 	int* newG = (int *)malloc((oldGSize+1)*(oldGSize+1)*sizeof(int));
 	CopyGraph(oldG,oldGSize,newG,oldGSize+1);
-	int j;
-	for(j=0; j < (oldGSize+1); j++)
-        {
-                if(rand() % 2 == 0)
-		{
-			newG[j*(oldGSize+1) + oldGSize] = 0; // last column
-                	newG[oldGSize*(oldGSize+1) + j] = 0; // last row
-		}
-		else
-		{
-			newG[j*(oldGSize+1) + oldGSize] = 1; // last column
-                	newG[oldGSize*(oldGSize+1) + j] = 1; // last row
-		}
-        }
-	int i=0;
+	int j,i=0;
+    RequestGraph(oldG,biggest,oldGSize+1);
 	void *taboo_list = FIFOInitEdge(TABOOSIZE);
 	while(1)
 	{
@@ -487,7 +483,7 @@ TrySolve(int *oldG,int oldGSize,int* biggest)
 				time(&start);
 				if(oldGSize+1 > 60)
 					SendGraph(newG,oldGSize+1);
-                	}
+            }
 			if(!TrySolve(newG,oldGSize+1,biggest)){
                 return(0);
             }
@@ -499,7 +495,8 @@ TrySolve(int *oldG,int oldGSize,int* biggest)
 		int dif = difftime(end, start);
 		if(dif > 60){
 			int *size = malloc(sizeof(int));
-			int *check = RequestGraph(size);
+			int *check = (int *)malloc((oldGSize+2)*(oldGSize+2)*sizeof(int));
+            RequestGraph(check,size,oldGSize+2);
 			time(&start);
 			if(*size > oldGSize){
 				fprintf(stdout, "%s", "Requested graph, new size is bigger, start over");
@@ -535,8 +532,10 @@ TrySolve(int *oldG,int oldGSize,int* biggest)
                         }
                         newG[i*(oldGSize+1)+oldGSize] = 1 - newG[i*(oldGSize+1)+oldGSize];
 		}
+        printf(best_count+"\n");
 		if(best_count > last_count) {
-			return(1);
+            printf("I'm stuck!\n");
+			exit(1);
 		}
 		newG[best_i*(oldGSize+1)+oldGSize] = 1 - newG[best_i*(oldGSize+1)+oldGSize];
         FIFOInsertEdge(taboo_list,best_i,oldGSize+1);
@@ -559,24 +558,22 @@ main(int argc,char *argv[])
 	int best_i;
 	int best_j;
 	void *taboo_list;
-        srand(time(NULL));
-    while(1){
-        gsize = 1;
-        g = (int *)malloc(gsize*gsize*sizeof(int));
-        if(g == NULL) {
-            exit(1);
-        }
-        memset(g,0,gsize*gsize*sizeof(int));
-        int* biggest=(int *)malloc(sizeof(int));
-        int *t_size = malloc(sizeof(int));
-        int* t = RequestGraph(t_size); //hopefully get the newest graph from server somewhere
-        *biggest = *t_size;
-        fprintf(stdout, "\n%d\n", *t_size);
-	time(&start);
-        TrySolve(t,*t_size,biggest);
-        free(g);
-        free(biggest);
-        free(t_size);
+    srand(time(NULL));
+    gsize = 1;
+    g = (int *)malloc(gsize*gsize*sizeof(int));
+    if(g == NULL) {
+        exit(1);
     }
+    memset(g,0,gsize*gsize*sizeof(int));
+    int* biggest=(int *)malloc(sizeof(int));
+    int *t_size = malloc(sizeof(int));
+    int *t = malloc(sizeof(int));
+    RequestGraph(t,biggest,1);
+    fprintf(stdout, "\n%d\n", *t_size);
+    time(&start);
+    TrySolve(t,1,biggest);
+    free(g);
+    free(biggest);
+    free(t_size);
 	return(0);
 }
