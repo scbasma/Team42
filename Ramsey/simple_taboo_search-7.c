@@ -473,7 +473,7 @@ TrySolve(int *oldG,int oldGSize,int* biggest)
 		}
         }
 	int i=0;
-	void *taboo_list = FIFOInitGraph(TABOOSIZE);
+	void *taboo_list = FIFOInitEdge(TABOOSIZE);
 	while(1)
 	{
 		int count = CliqueCount(newG,oldGSize+1);
@@ -518,7 +518,7 @@ TrySolve(int *oldG,int oldGSize,int* biggest)
                 for(j=0; j < (oldGSize+1); j++){
                     tempG[j]=newG[j*(oldGSize+1) + oldGSize];
                 }
-				FIFOInsertGraph(taboo_list,tempG,oldGSize+1);
+				FIFOInsertEdge(taboo_list,i,oldGSize+1);
                 free(tempG);
 				if(oldGSize+1>*biggest)
                         	{
@@ -537,7 +537,7 @@ TrySolve(int *oldG,int oldGSize,int* biggest)
                         for(j=0; j < (oldGSize+1); j++){
                             tempG[j]=newG[j*(oldGSize+1) + oldGSize];
                         }
-                        if((count < best_count) && !FIFOFindGraph(taboo_list,tempG,oldGSize+1))
+                        if((count < best_count) && !FIFOFindEdge(taboo_list,i,oldGSize+1))
                         {
                         	best_count = count;
                         	best_i = i;
@@ -553,7 +553,7 @@ TrySolve(int *oldG,int oldGSize,int* biggest)
         for(j=0; j < (oldGSize+1); j++){
             tempG[j]=newG[j*(oldGSize+1) + oldGSize];
         }
-        FIFOInsertGraph(taboo_list,tempG,oldGSize+1);
+        FIFOInsertEdge(taboo_list,best_i,oldGSize+1);
 
         free(tempG);
 	}
